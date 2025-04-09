@@ -78,4 +78,5 @@ END
 
 
 UpdateProductPrice 125, 256
---test
+--test...
+--deneme
