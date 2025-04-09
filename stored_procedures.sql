@@ -99,15 +99,15 @@ BEGIN
 	 BEGIN TRAN T1
 		INSERT into Orders (CustomerID, EmployeeID, ShipVia) values (@CustomerID, @EmployeeID, @ShipperID)
 		SET @OrderID = SCOPE_IDENTITY()
-		BEGIN TRAN T2
+		--BEGIN TRAN T2
 		   INSERT INTO [Order Details] (OrderID, ProductID,Quantity,UnitPrice) values
 		                               (@OrderID, @ProductID,@Quantity,@UnitPrice) 
-		   BEGIN TRAN T3
+		  -- BEGIN TRAN T3
 		      UPDATE Products SET UnitsInStock = UnitsInStock - @Quantity
 			  WHERE ProductID = @ProductID 
-		   COMMIT TRAN T3
+		   --COMMIT TRAN T3
 					
-		COMMIT TRAN T2
+		--COMMIT TRAN T2
      COMMIT TRAN T1 
    END TRY
    BEGIN CATCH
@@ -119,3 +119,40 @@ END
 CreateOrderWithDetails 'ALFKI', 3, 1, 4, 20,10
 
 SELECT * FROM [Orders] WHERE CustomerID ='ALFKI'
+
+-- Output parametre ile sp:
+
+ALTER PROC CalculateOrderTotal
+  @OrderId int,
+  @TotalAmount Money OUTPUT,
+  @ItemCount int OUTPUT
+AS
+BEGIN
+  SET NOCOUNT ON;
+  --Verileri tablodan çekip hesaplayacaksam:
+  SELECT @TotalAmount = SUM(Quantity * UnitPrice * (1-Discount)),
+         @ItemCount = SUM(Quantity)
+  FROM [Order Details]
+  WHERE OrderID =@OrderId;
+
+  Print(@TotalAmount)
+  Print(@ItemCount)
+
+
+  IF @TotalAmount IS NULL
+    BEGIN
+	  SET @TotalAmount = 0
+	  SET @ItemCount = 0
+	END
+END
+
+DECLARE @total money, @Items int;
+
+EXEC CalculateOrderTotal 
+       @OrderID=10350, 
+	   @TotalAmount= @total OUTPUT,
+	   @ItemCount = @Items OUTPUT;
+
+SELECT @total 'Sipariş Tutarı', 
+       @Items 'Ürün Adedi'
+
