@@ -50,7 +50,7 @@ ORDER BY o.OrderDate
 
 END
 
-GetCustomerOrdersByDate 'ANTON', '1997-01-01', '1997-12-31'
+GetCustomerOrdersByDate 'ALFKI', '2025-01-01', '2025-12-31'
 
 --Bir ürünün fiyatını güncelleyen prosedür:
 
@@ -80,3 +80,42 @@ END
 UpdateProductPrice 125, 256
 --test...
 --deneme
+
+-- Transaction management...
+
+ALTER PROCEDURE CreateOrderWithDetails
+  @CustomerID nchar(5),
+  @EmployeeID int,
+  @ShipperID int,
+  @ProductID int,
+  @Quantity int,
+  @UnitPrice money
+AS
+BEGIN 
+   SET NOCOUNT ON;
+   DECLARE @OrderID int
+   BEGIN TRY
+     --Transaction 1: Sipariş oluştur:
+	 BEGIN TRAN T1
+		INSERT into Orders (CustomerID, EmployeeID, ShipVia) values (@CustomerID, @EmployeeID, @ShipperID)
+		SET @OrderID = SCOPE_IDENTITY()
+		BEGIN TRAN T2
+		   INSERT INTO [Order Details] (OrderID, ProductID,Quantity,UnitPrice) values
+		                               (@OrderID, @ProductID,@Quantity,@UnitPrice) 
+		   BEGIN TRAN T3
+		      UPDATE Products SET UnitsInStock = UnitsInStock - @Quantity
+			  WHERE ProductID = @ProductID 
+		   COMMIT TRAN T3
+					
+		COMMIT TRAN T2
+     COMMIT TRAN T1 
+   END TRY
+   BEGIN CATCH
+      ROLLBACK TRAN T1
+	  SELECT ERROR_MESSAGE()
+   END CATCH
+END
+
+CreateOrderWithDetails 'ALFKI', 3, 1, 4, 20,10
+
+SELECT * FROM [Orders] WHERE CustomerID ='ALFKI'
