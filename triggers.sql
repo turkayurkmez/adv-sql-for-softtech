@@ -60,3 +60,72 @@ DELETE FROM Products WHERE ProductID = 3
 --1. Performans yükünü arttırır.
 --2. Hata ayıklama kabus olabilir.
 --3. Yönetilemez ise recursive olabilir.
+
+CREATE DATABASE TriggerNightmare
+GO
+use TriggerNightmare
+CREATE TABLE Students
+( 
+   ID int identity(1,1) not null,
+   Name nvarchar(50),
+   LastName nvarchar(50),
+   Score int
+)
+GO
+CREATE TABLE Successed
+( 
+   ID int not null,
+   Name nvarchar(50),
+   LastName nvarchar(50),
+   Score int
+)
+GO
+CREATE TABLE Failed
+( 
+   ID int not null,
+   Name nvarchar(50),
+   LastName nvarchar(50),
+   Score int
+)
+
+use TriggerNightmare
+ALTER DATABASE TriggerNightmare
+SET RECURSIVE_TRIGGERS ON
+GO
+
+CREATE TRIGGER tr_Student
+ON Students
+AFTER INSERT
+AS
+BEGIN
+   DECLARE @ID int, @score int
+   DECLARE @Name nvarchar(50), @LastName nvarchar(50)
+   SELECT @ID=ID, @Name=Name, @LastName=LastName, @score = Score FROM inserted
+
+   IF @score > 50
+     INSERT into Successed(Id,Name,LastName,Score) values (@ID, @Name,@LastName,@score)
+   ELSE
+      INSERT into Failed(Id,Name,LastName,Score) values (@ID, @Name,@LastName,@score)
+END
+
+INSERT into Students(Name,LastName,Score) values ('Emin','Tekin',80)
+INSERT into Students(Name,LastName,Score) values ('Türkay','Ürkmez',45)
+
+CREATE TRIGGER tr_Successed
+ON Successed
+INSTEAD OF INSERT
+AS
+BEGIN 
+   DECLARE @score int
+   DECLARE @Name nvarchar(50), @LastName nvarchar(50)
+   SELECT  @Name=Name, @LastName=LastName, @score = Score FROM inserted
+
+   INSERT into Students(Name,LastName,Score) values (@Name,@LastName,@score)
+END
+
+INSERT INTO Successed(Id,Name,LastName,Score) values (3, 'A','B',90)
+
+-- kılavuzu Trigger olanın burnu bug'dan kurtulmaz.
+
+
+
