@@ -103,5 +103,62 @@ AS
  WHERE Fiyat = (SELECT MAX(Fiyat) FROM dbo.KategoriUrun(5) )
 
  FROM Categories as c
- ORDER BY MaxFiyat DESC
+ ORDER BY MaxFiyat DESCs
  
+ -- İki tarih arasındaki iş günlerini hesaplamak istiyoruz.
+ -- Datepart, interval olarak weekday kullandığında Pazar -1 Cumartesi - 7 olacak biçimde değer döndürür.
+ SELECT DATEPART(weekday,'2025-04-12')
+
+ ALTER FUNCTION IsGunuSayisi
+ (
+   @Baslangic date,
+   @Bitis date
+ )
+ RETURNS int
+ AS
+ BEGIN
+    DECLARE @GunSayisi int = 0
+	--belirtilen tarihler arasında tek tek ilerle; hafta içi olanları say:
+	DECLARE @AktifGun date = @Baslangic
+	WHILE @AktifGun < @Bitis
+	 BEGIN
+	   IF DATEPART(weekDay,@AktifGun) NOT IN (1,7)
+	      SET @GunSayisi = @GunSayisi +1 
+	      SET @AktifGun = DATEADD(day,1,@AktifGun)
+	 END
+
+	 RETURN @GunSayisi
+ END
+
+ SELECT dbo.IsGunuSayisi('2025-04-01','2025-04-08')
+
+ SELECT 
+   OrderID, CONVERT(nvarchar(15), OrderDate,103), CONVERT(nvarchar(15),RequiredDate,103),  dbo.IsGunuSayisi(OrderDate,RequiredDate) as 'Teslim iş günü'
+ FROM Orders
+
+ CREATE FUNCTION TedarikciInfo(@SupplierId int)
+ RETURNS nvarchar(MAX)
+ AS
+ BEGIN
+    DECLARE @CompanyName nvarchar(40)
+	DECLARE @ProductCount int
+	DECLARE @AvgPrice int
+	DECLARE @result nvarchar(MAX)
+	
+	SELECT 
+	   @CompanyName = CompanyName,
+	   @ProductCount = (SELECT COUNT(ProductID) FROM Products WHERE SupplierID = @SupplierId),
+	   @AvgPrice = ( SELECT AVG(UnitPrice) FROM Products WHERE SupplierID = @SupplierId)
+	FROM Suppliers
+	WHERE SupplierID = @SupplierId
+
+	SET @result = @CompanyName + ' firmasının toplam ürünü: '
+	             + CAST(@ProductCount as nvarchar(5))+', ortalama fiyatı' 
+				 + FORMAT(@AvgPrice,'C','tr-TR')  
+
+    RETURN @result
+  
+ END
+ -- Exotic Lquids firmasının toplam ürünü 3, ortalama fiyatı: 22.56
+
+ SELECT SupplierId, CompanyName, Country, City,  dbo.TedarikciInfo(SupplierId) FROM  Suppliers
